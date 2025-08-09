@@ -12,7 +12,7 @@ import ReferralSection from './components/ReferralSection';
 import LoadingScreen from './components/LoadingScreen';
 
 // Set axios defaults
-axios.defaults.baseURL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
+axios.defaults.baseURL = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'production' ? '/api' : 'http://localhost:3001/api');
 
 function App() {
   const [activeSection, setActiveSection] = useState('wallet');
