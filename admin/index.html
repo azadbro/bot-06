@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TRX Earn Bot - Admin Panel</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+    </style>
+</head>
+<body class="font-sans">
+    <div id="app" class="min-h-screen">
+        <!-- Login Screen -->
+        <div id="loginScreen" class="flex items-center justify-center min-h-screen p-4">
+            <div class="card p-8 w-full max-w-md">
+                <div class="text-center mb-6">
+                    <h1 class="text-3xl font-bold text-gray-800 mb-2">🔐 Admin Panel</h1>
+                    <p class="text-gray-600">TRX Earn Bot Administration</p>
+                </div>
+                <div class="space-y-4">
+                    <input 
+                        type="password" 
+                        id="passwordInput" 
+                        placeholder="Admin Password" 
+                        class="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                    <button 
+                        onclick="login()" 
+                        class="w-full bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                        Login
+                    </button>
+                </div>
+                <div id="loginError" class="mt-4 text-red-600 text-sm hidden"></div>
+            </div>
+        </div>
+
+        <!-- Dashboard -->
+        <div id="dashboard" class="hidden p-4">
+            <!-- Header -->
+            <div class="card p-6 mb-6">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <h1 class="text-3xl font-bold text-gray-800">📊 Admin Dashboard</h1>
+                        <p class="text-gray-600">TRX Earn Bot Management</p>
+                    </div>
+                    <button 
+                        onclick="logout()" 
+                        class="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition-colors"
+                    >
+                        Logout
+                    </button>
+                </div>
+            </div>
+
+            <!-- Stats Overview -->
+            <div id="statsOverview" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                <!-- Stats will be loaded here -->
+            </div>
+
+            <!-- Navigation Tabs -->
+            <div class="card p-1 mb-6">
+                <div class="flex space-x-1">
+                    <button onclick="showTab('overview')" class="tab-btn active" data-tab="overview">Overview</button>
+                    <button onclick="showTab('users')" class="tab-btn" data-tab="users">Users</button>
+                    <button onclick="showTab('withdrawals')" class="tab-btn" data-tab="withdrawals">Withdrawals</button>
+                    <button onclick="showTab('tasks')" class="tab-btn" data-tab="tasks">Tasks</button>
+                </div>
+            </div>
+
+            <!-- Tab Content -->
+            <div id="tabContent" class="card p-6">
+                <!-- Content will be loaded here -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentPassword = '';
+        let currentTab = 'overview';
+        
+        // Set axios base URL
+        axios.defaults.baseURL = window.location.origin + '/api';
+
+        async function login() {
+            const password = document.getElementById('passwordInput').value;
+            const errorDiv = document.getElementById('loginError');
+            
+            if (!password) {
+                showError('Please enter password');
+                return;
+            }
+
+            try {
+                // Test authentication
+                const response = await axios.get('/admin/stats', {
+                    headers: { password }
+                });
+                
+                currentPassword = password;
+                document.getElementById('loginScreen').classList.add('hidden');
+                document.getElementById('dashboard').classList.remove('hidden');
+                
+                loadDashboard();
+            } catch (error) {
+                showError('Invalid password');
+            }
+        }
+
+        function logout() {
+            currentPassword = '';
+            document.getElementById('dashboard').classList.add('hidden');
+            document.getElementById('loginScreen').classList.remove('hidden');
+            document.getElementById('passwordInput').value = '';
+        }
+
+        function showError(message) {
+            const errorDiv = document.getElementById('loginError');
+            errorDiv.textContent = message;
+            errorDiv.classList.remove('hidden');
+            setTimeout(() => errorDiv.classList.add('hidden'), 3000);
+        }
+
+        async function loadDashboard() {
+            await loadStats();
+            showTab('overview');
+        }
+
+        async function loadStats() {
+            try {
+                const response = await axios.get('/admin/stats', {
+                    headers: { password: currentPassword }
+                });
+                
+                const stats = response.data.overview;
+                const statsHtml = `
+                    <div class="card p-4 text-center">
+                        <div class="text-2xl font-bold text-blue-600 mb-1">${stats.totalUsers}</div>
+                        <div class="text-sm text-gray-600">Total Users</div>
+                    </div>
+                    <div class="card p-4 text-center">
+                        <div class="text-2xl font-bold text-green-600 mb-1">${stats.activeUsers}</div>
+                        <div class="text-sm text-gray-600">Active Users</div>
+                    </div>
+                    <div class="card p-4 text-center">
+                        <div class="text-2xl font-bold text-purple-600 mb-1">${stats.totalEarned.toFixed(6)}</div>
+                        <div class="text-sm text-gray-600">Total TRX Earned</div>
+                    </div>
+                    <div class="card p-4 text-center">
+                        <div class="text-2xl font-bold text-orange-600 mb-1">${stats.totalWithdrawn.toFixed(6)}</div>
+                        <div class="text-sm text-gray-600">Total TRX Withdrawn</div>
+                    </div>
+                `;
+                document.getElementById('statsOverview').innerHTML = statsHtml;
+            } catch (error) {
+                console.error('Failed to load stats:', error);
+            }
+        }
+
+        function showTab(tabName) {
+            // Update tab buttons
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
+            
+            currentTab = tabName;
+            loadTabContent(tabName);
+        }
+
+        async function loadTabContent(tabName) {
+            const content = document.getElementById('tabContent');
+            
+            switch(tabName) {
+                case 'overview':
+                    await loadOverview();
+                    break;
+                case 'users':
+                    await loadUsers();
+                    break;
+                case 'withdrawals':
+                    await loadWithdrawals();
+                    break;
+                case 'tasks':
+                    await loadTasks();
+                    break;
+            }
+        }
+
+        async function loadOverview() {
+            try {
+                const response = await axios.get('/admin/stats', {
+                    headers: { password: currentPassword }
+                });
+                
+                const data = response.data;
+                const content = `
+                    <h2 class="text-2xl font-bold mb-4">📈 System Overview</h2>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                        <div>
+                            <h3 class="text-lg font-semibold mb-3">User Statistics</h3>
+                            <div class="space-y-2 text-sm">
+                                <div class="flex justify-between">
+                                    <span>Total Users:</span>
+                                    <span class="font-semibold">${data.overview.totalUsers}</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span>Active Users:</span>
+                                    <span class="font-semibold">${data.overview.activeUsers}</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span>Total Referrals:</span>
+                                    <span class="font-semibold">${data.overview.totalReferrals}</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span>Verified Referrals:</span>
+                                    <span class="font-semibold">${data.overview.verifiedReferrals}</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <h3 class="text-lg font-semibold mb-3">Financial Overview</h3>
+                            <div class="space-y-2 text-sm">
+                                <div class="flex justify-between">
+                                    <span>Total Earned:</span>
+                                    <span class="font-semibold">${data.overview.totalEarned.toFixed(6)} TRX</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span>Total Withdrawn:</span>
+                                    <span class="font-semibold">${data.overview.totalWithdrawn.toFixed(6)} TRX</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span>Pending Withdrawals:</span>
+                                    <span class="font-semibold">${data.withdrawalStats.pending}</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span>Commission Earned:</span>
+                                    <span class="font-semibold">${data.withdrawalStats.totalCommission.toFixed(6)} TRX</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <h3 class="text-lg font-semibold mb-3">Recent Users</h3>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="p-2 text-left">User</th>
+                                        <th class="p-2 text-left">Balance</th>
+                                        <th class="p-2 text-left">Ads Watched</th>
+                                        <th class="p-2 text-left">Joined</th>
+                                        <th class="p-2 text-left">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${data.recentUsers.map(user => `
+                                        <tr class="border-t">
+                                            <td class="p-2">
+                                                <div class="font-medium">${user.firstName}</div>
+                                                <div class="text-gray-500">@${user.username || 'N/A'}</div>
+                                            </td>
+                                            <td class="p-2">${user.trxBalance.toFixed(6)} TRX</td>
+                                            <td class="p-2">${user.adsWatched}</td>
+                                            <td class="p-2">${new Date(user.createdAt).toLocaleDateString()}</td>
+                                            <td class="p-2">
+                                                <span class="px-2 py-1 rounded text-xs ${user.isBlocked ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'}">
+                                                    ${user.isBlocked ? 'Blocked' : 'Active'}
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                `;
+                document.getElementById('tabContent').innerHTML = content;
+            } catch (error) {
+                document.getElementById('tabContent').innerHTML = '<p class="text-red-600">Failed to load overview</p>';
+            }
+        }
+
+        async function loadUsers() {
+            try {
+                const response = await axios.get('/admin/users', {
+                    headers: { password: currentPassword }
+                });
+                
+                const users = response.data.users;
+                const content = `
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-2xl font-bold">👥 User Management</h2>
+                        <button onclick="refreshUsers()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+                            Refresh
+                        </button>
+                    </div>
+                    
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="p-3 text-left">User</th>
+                                    <th class="p-3 text-left">Balance</th>
+                                    <th class="p-3 text-left">Total Earned</th>
+                                    <th class="p-3 text-left">Ads Watched</th>
+                                    <th class="p-3 text-left">Referrals</th>
+                                    <th class="p-3 text-left">Status</th>
+                                    <th class="p-3 text-left">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${users.map(user => `
+                                    <tr class="border-t">
+                                        <td class="p-3">
+                                            <div class="font-medium">${user.firstName} ${user.lastName || ''}</div>
+                                            <div class="text-gray-500">@${user.username || 'N/A'} (${user.telegramId})</div>
+                                        </td>
+                                        <td class="p-3">${(user.trxBalance || 0).toFixed(6)} TRX</td>
+                                        <td class="p-3">${(user.totalEarned || 0).toFixed(6)} TRX</td>
+                                        <td class="p-3">${user.adsWatched || 0}</td>
+                                        <td class="p-3">${(user.referrals || []).length}</td>
+                                        <td class="p-3">
+                                            <span class="px-2 py-1 rounded text-xs ${user.isBlocked ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'}">
+                                                ${user.isBlocked ? 'Blocked' : 'Active'}
+                                            </span>
+                                        </td>
+                                        <td class="p-3">
+                                            <button onclick="toggleUserBlock('${user.telegramId}', ${!user.isBlocked})" 
+                                                    class="text-xs px-2 py-1 rounded ${user.isBlocked ? 'bg-green-500 text-white' : 'bg-red-500 text-white'}">
+                                                ${user.isBlocked ? 'Unblock' : 'Block'}
+                                            </button>
+                                        </td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+                document.getElementById('tabContent').innerHTML = content;
+            } catch (error) {
+                document.getElementById('tabContent').innerHTML = '<p class="text-red-600">Failed to load users</p>';
+            }
+        }
+
+        async function loadWithdrawals() {
+            try {
+                const response = await axios.get('/admin/withdrawals/pending', {
+                    headers: { password: currentPassword }
+                });
+                
+                const withdrawals = response.data.withdrawals;
+                const content = `
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-2xl font-bold">💸 Pending Withdrawals</h2>
+                        <button onclick="refreshWithdrawals()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+                            Refresh
+                        </button>
+                    </div>
+                    
+                    ${withdrawals.length === 0 ? 
+                        '<p class="text-gray-600 text-center py-8">No pending withdrawals</p>' :
+                        `<div class="overflow-x-auto">
+                            <table class="w-full text-sm">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="p-3 text-left">User</th>
+                                        <th class="p-3 text-left">Amount</th>
+                                        <th class="p-3 text-left">Commission</th>
+                                        <th class="p-3 text-left">Net Amount</th>
+                                        <th class="p-3 text-left">Address</th>
+                                        <th class="p-3 text-left">Date</th>
+                                        <th class="p-3 text-left">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${withdrawals.map(w => `
+                                        <tr class="border-t">
+                                            <td class="p-3">
+                                                <div class="font-medium">${w.user?.firstName || 'Unknown'}</div>
+                                                <div class="text-gray-500">${w.telegramId}</div>
+                                            </td>
+                                            <td class="p-3">${w.amount.toFixed(6)} TRX</td>
+                                            <td class="p-3">${w.commission.toFixed(6)} TRX</td>
+                                            <td class="p-3">${w.netAmount.toFixed(6)} TRX</td>
+                                            <td class="p-3 font-mono text-xs">${w.toAddress.slice(0, 8)}...${w.toAddress.slice(-8)}</td>
+                                            <td class="p-3">${new Date(w.createdAt).toLocaleDateString()}</td>
+                                            <td class="p-3">
+                                                <div class="space-x-2">
+                                                    <button onclick="approveWithdrawal('${w.id}')" 
+                                                            class="bg-green-500 text-white px-2 py-1 text-xs rounded">
+                                                        Approve
+                                                    </button>
+                                                    <button onclick="rejectWithdrawal('${w.id}')" 
+                                                            class="bg-red-500 text-white px-2 py-1 text-xs rounded">
+                                                        Reject
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>`
+                    }
+                `;
+                document.getElementById('tabContent').innerHTML = content;
+            } catch (error) {
+                document.getElementById('tabContent').innerHTML = '<p class="text-red-600">Failed to load withdrawals</p>';
+            }
+        }
+
+        async function loadTasks() {
+            try {
+                const response = await axios.get('/admin/tasks', {
+                    headers: { password: currentPassword }
+                });
+                
+                const tasks = response.data.tasks;
+                const content = `
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-2xl font-bold">📋 Task Management</h2>
+                        <button onclick="refreshTasks()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+                            Refresh
+                        </button>
+                    </div>
+                    
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="p-3 text-left">Title</th>
+                                    <th class="p-3 text-left">Type</th>
+                                    <th class="p-3 text-left">Reward</th>
+                                    <th class="p-3 text-left">Completions</th>
+                                    <th class="p-3 text-left">Status</th>
+                                    <th class="p-3 text-left">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${tasks.map(task => `
+                                    <tr class="border-t">
+                                        <td class="p-3">
+                                            <div class="font-medium">${task.title}</div>
+                                            <div class="text-gray-500 text-xs">${task.description}</div>
+                                        </td>
+                                        <td class="p-3">${task.type.replace('_', ' ')}</td>
+                                        <td class="p-3">${task.reward.toFixed(6)} TRX</td>
+                                        <td class="p-3">${(task.completedBy || []).length}</td>
+                                        <td class="p-3">
+                                            <span class="px-2 py-1 rounded text-xs ${task.isActive ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-600'}">
+                                                ${task.isActive ? 'Active' : 'Inactive'}
+                                            </span>
+                                        </td>
+                                        <td class="p-3">
+                                            <button onclick="toggleTask('${task.id}', ${!task.isActive})" 
+                                                    class="text-xs px-2 py-1 rounded ${task.isActive ? 'bg-gray-500 text-white' : 'bg-green-500 text-white'}">
+                                                ${task.isActive ? 'Deactivate' : 'Activate'}
+                                            </button>
+                                        </td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+                document.getElementById('tabContent').innerHTML = content;
+            } catch (error) {
+                document.getElementById('tabContent').innerHTML = '<p class="text-red-600">Failed to load tasks</p>';
+            }
+        }
+
+        // Helper functions
+        async function toggleUserBlock(telegramId, blocked) {
+            try {
+                const reason = blocked ? prompt('Enter reason for blocking:') : '';
+                if (blocked && !reason) return;
+                
+                await axios.post(`/admin/users/${telegramId}/block`, {
+                    blocked,
+                    reason
+                }, {
+                    headers: { password: currentPassword }
+                });
+                
+                refreshUsers();
+            } catch (error) {
+                alert('Failed to update user status');
+            }
+        }
+
+        async function approveWithdrawal(withdrawalId) {
+            try {
+                const txHash = prompt('Enter transaction hash (optional):') || '';
+                const notes = prompt('Enter notes (optional):') || '';
+                
+                await axios.post(`/admin/withdrawals/${withdrawalId}/approve`, {
+                    txHash,
+                    notes
+                }, {
+                    headers: { password: currentPassword }
+                });
+                
+                alert('Withdrawal approved successfully');
+                refreshWithdrawals();
+            } catch (error) {
+                alert('Failed to approve withdrawal');
+            }
+        }
+
+        async function rejectWithdrawal(withdrawalId) {
+            try {
+                const notes = prompt('Enter rejection reason:');
+                if (!notes) return;
+                
+                await axios.post(`/admin/withdrawals/${withdrawalId}/reject`, {
+                    notes
+                }, {
+                    headers: { password: currentPassword }
+                });
+                
+                alert('Withdrawal rejected successfully');
+                refreshWithdrawals();
+            } catch (error) {
+                alert('Failed to reject withdrawal');
+            }
+        }
+
+        async function toggleTask(taskId, isActive) {
+            try {
+                await axios.put(`/admin/tasks/${taskId}`, {
+                    isActive
+                }, {
+                    headers: { password: currentPassword }
+                });
+                
+                refreshTasks();
+            } catch (error) {
+                alert('Failed to update task status');
+            }
+        }
+
+        function refreshUsers() {
+            if (currentTab === 'users') loadUsers();
+        }
+
+        function refreshWithdrawals() {
+            if (currentTab === 'withdrawals') loadWithdrawals();
+        }
+
+        function refreshTasks() {
+            if (currentTab === 'tasks') loadTasks();
+        }
+
+        // Enter key support for login
+        document.getElementById('passwordInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                login();
+            }
+        });
+
+        // CSS for tab buttons
+        const style = document.createElement('style');
+        style.textContent = `
+            .tab-btn {
+                padding: 8px 16px;
+                border-radius: 8px;
+                background: transparent;
+                border: none;
+                cursor: pointer;
+                transition: all 0.2s;
+                font-weight: 500;
+            }
+            .tab-btn:hover {
+                background: rgba(59, 130, 246, 0.1);
+            }
+            .tab-btn.active {
+                background: #3b82f6;
+                color: white;
+            }
+        `;
+        document.head.appendChild(style);
+    </script>
+</body>
+</html>
